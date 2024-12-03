@@ -62,6 +62,9 @@ class Session:
             print(f"Error: {e}")
 
     def EndSession(self):
+        # send a kill command to the client so the
+        # shell session gets terminated
+        self.connection.send(b"exit\n")
         self.connection.close()
 
     def Active(self):
