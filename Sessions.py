@@ -50,6 +50,8 @@ class Session:
     # send a command to session and print the returned buffer
     def SendCommand(self, payload:str=""):
         cmd = payload + "\n"
+        sys.stdout.write("\b \b")
+        sys.stdout.flush()
 
         self.GetSessionData().GetConnection().settimeout(None)
         try:
@@ -62,8 +64,12 @@ class Session:
                     # use a while-loop to ensure we capture everything
                     output = self.GetSessionData().GetConnection().recv(4096).decode()
                     if ackID == 0:
-                        sys.stdout.write(output[len(payload):])
+                        sys.stdout.write("\b \b")
+                        sys.stdout.flush()
+                        sys.stdout.write(output[len(cmd):])
                     else:
+                        sys.stdout.write("\b \b")
+                        sys.stdout.flush()
                         sys.stdout.write(output)
                     ackID = ackID + 1
             except socket.timeout:
