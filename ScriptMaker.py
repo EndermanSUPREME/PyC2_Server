@@ -63,7 +63,7 @@ pty.spawn(\"{shellType}\")
     # run a system command to run pyinstaller
     buildcmd = 'pyinstaller --log-level=WARN --onefile malclient.py'
     
-    subprocess.run(buildcmd, capture_output=False)
+    subprocess.run(buildcmd, shell=True)
     remove_paths(['malclient', 'malclient.exe', 'malclient.spec'])
     MoveExecutable(osTarget,unixPorts)
     remove_paths(['__pycache__', 'build', 'dist'])
