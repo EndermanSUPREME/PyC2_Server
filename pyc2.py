@@ -15,23 +15,25 @@ def main():
 
     lhost_lower = str(lhost).lower()
 
-    # Set the configuration with an IP and random port
-    print("Creating Server Config")
-    MalServer = Server.ServerConfig(Server.GetIP(lhost_lower),random.randint(1024,65535))
-
-    # Start server on a thread
-    # print("Starting Mal-Server Thread")
-    # serverThread = threading.Thread(target=Server.RunServer,args=[MalServer])
-    # serverThread.start()
-
     # Start CLI thread
     print("Starting C2-CLI")
+
+    # Set the configuration with an IP and random port
+    print("Creating Server Config")
+    MalServer = Server.ServerConfig(Server.GetIP(lhost_lower),random.randint(4096,65535))
+
     commandHandler = Prompt.HandlerPrompt(MalServer)
+    commandHandler.WriteToTerminal("Starting C2 Terminal Thread")
     cliThread = threading.Thread(target=Prompt.ProcessCommand,args=[commandHandler])
     cliThread.start()
 
+    # Start server on a thread
+    commandHandler.WriteToTerminal("Starting Mal-Server Thread")
+    serverThread = threading.Thread(target=Server.RunServer,args=[MalServer,commandHandler])
+    serverThread.start()
+
     cliThread.join()
-    # serverThread.join()
+    serverThread.join()
 
 if __name__ == "__main__":
     main()
