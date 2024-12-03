@@ -4,20 +4,18 @@ import os, subprocess, shutil
 def remove_paths(paths):
     print("[*] Performing Clean-Up. . .")
     for path in paths:
-        if os.path.isdir(path):  # If it's a directory
+        if os.path.isdir(path): # If it's a directory
             try:
-                shutil.rmtree(path)  # Remove the entire directory and its contents
-                print(f"Directory {path} has been deleted.")
-            except Exception as e:
-                print(f"Error deleting directory {path}: {e}")
-        elif os.path.isfile(path):  # If it's a file
+                shutil.rmtree(path) # Remove the entire directory and its contents
+            except Exception:
+                continue
+        elif os.path.isfile(path): # If it's a file
             try:
-                os.remove(path)  # Remove the file
-                print(f"File {path} has been deleted.")
-            except Exception as e:
-                print(f"Error deleting file {path}: {e}")
+                os.remove(path) # Remove the file
+            except Exception:
+                continue
         else:
-            print(f"Path {path} does not exist or is not a valid file/directory.")
+            continue
 
 def MoveExecutable(osTarget:str, unixPorts):
     if osTarget.lower() not in unixPorts:
@@ -65,8 +63,7 @@ os.remove(sys.argv[0])
     buildcmd = 'pyinstaller --log-level=WARN --onefile malclient.py'
     
     subprocess.run(buildcmd, shell=True)
-    remove_paths(['malclient', 'malclient.exe', 'malclient.spec'])
+    remove_paths(['__pycache__', 'build', 'dist', 'malclient', 'malclient.exe', 'malclient.spec'])
     MoveExecutable(osTarget,unixPorts)
-    remove_paths(['__pycache__', 'build', 'dist'])
 
     return True
