@@ -21,10 +21,7 @@ class Session:
         self.session_data.GetConnection().settimeout(5)
         try:
             self.session_data.GetConnection().sendall(b'\n')
-
             output = self.session_data.GetConnection().recv(4096).decode()
-            self.GetSessionData().SetSessionDetails(output)
-            
             self.session_data.GetConnection().settimeout(None)
             return output
         except socket.timeout:
