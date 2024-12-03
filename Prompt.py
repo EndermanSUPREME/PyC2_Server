@@ -1,4 +1,4 @@
-import argparse, sys, shlex
+import argparse, os, sys, shlex
 import ScriptMaker
 
 class HandlerPrompt:
@@ -105,6 +105,7 @@ def ProcessCommand(handle: HandlerPrompt):
                         handle.PromptType(2)
                         handle.inputStr = "Script > "
                 except SystemExit:
+                    os.system(cmd)
                     continue
 
             elif handle.PromptType(-1) == 1:
