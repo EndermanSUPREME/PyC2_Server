@@ -100,7 +100,7 @@ def ProcessCommand(handle: HandlerPrompt):
                                 handle.inputStr = "C2 > "
                     else:
                         # Create a shell script based off malserver details
-                        handle.PromptType(1)
+                        handle.PromptType(2)
                         handle.inputStr = "Script > "
                 except SystemExit:
                     continue
@@ -112,6 +112,16 @@ def ProcessCommand(handle: HandlerPrompt):
                 handle.inputStr = ""
                 handle.isess.SendCommand(cmd)
             elif handle.PromptType(-1) == 2:
-                # Create a shell script based off malserver details
-                ScriptMaker.CreateScript(handle.malserver.GetLhost(),handle.malserver.GetLport())
-                handle.PromptType(0)
+                cmd_args = shlex.split(cmd)
+                try:
+                    parser = argparse.ArgumentParser()
+                    parser.add_argument("-t", "--target", type=str, help="Executable Target OS")
+                    args = parser.parse_args(cmd_args)
+
+                    if args.target is not None:
+                        # Create a shell script based off malserver details
+                        if ScriptMaker.CreateScript(handle.malserver.GetLhost(),handle.malserver.GetLport(),args.target):
+                            handle.inputStr = "C2 > "
+                            handle.PromptType(0)
+                except SystemExit:
+                    continue
