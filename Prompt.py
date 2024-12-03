@@ -89,14 +89,16 @@ def ProcessCommand(handle: HandlerPrompt):
                                         handle.PromptType(1)
                                     else:
                                         print(f"[-] Session | {handle.isess.GetSessionData().GetAddress()} | has Died!")
-                                        handle.malserver.GetSessions().remove(args.interact)
+                                        handle.malserver.GetSessions()[args.interact].EndSession()
+                                        handle.malserver.GetSessions().remove(handle.malserver.GetSessions()[args.interact])
                                 else:
                                     handle.DisplaySessions()
                             elif args.sessions:
                                 handle.DisplaySessions()
                             elif args.kill is not None:
-                                print("[*] Attempting to Kill SessionID: {args.kill}")
-                                handle.malserver.GetSessions().remove(args.kill)
+                                print(f"[*] Attempting to Kill SessionID: {args.kill}")
+                                handle.malserver.GetSessions()[args.kill].EndSession()
+                                handle.malserver.GetSessions().remove(handle.malserver.GetSessions()[args.kill])
                                 handle.inputStr = "C2 > "
                     else:
                         # Create a shell script based off malserver details

